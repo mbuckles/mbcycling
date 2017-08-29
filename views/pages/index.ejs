@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <% include ../partials/header.ejs %>
+</head>
+<body>
+  <div class="container-fluid main">
+    <h1>Controversial Cycling Times up Alpe d'Huez
+  </h1>
+    <h3>Distance = 8.57mi / 13.8km</h3>
+    <div class="chart">
+    <div>
+      <div id="tooltip">
+        <p><span id="name"></span>, <span id="nationality"></span></p>
+        <p>Year: <span id="year"></span>, Time: <span id="time"></span></p>
+        <p id="doping"></p>
+      </div>
+    </div>
+      </div>
+  </div>
+ <footer>
+   <% include ../partials/footer.ejs %>
+   <script>
+   const url = 'https://raw.githubusercontent.com/FreeCodeCamp/ProjectReferenceData/master/cyclist-data.json';
+   // GET data and visualize it !
+   d3.json(url, function(error, json) {
+     if (error) return console.warn(error);
+     main(json);
+   });
+
+   let margin = {top: 20, right: 20, bottom: 20, left: 20};
+   let padding = {top: 30, right: 110, bottom: 70, left: 50};
+   let outerWidth = 850, outerHeight = 600;
+   let innerWidth = outerWidth - margin.left - margin.right;
+   let innerHeight = outerHeight - margin.top - margin.bottom;
+   let width = innerWidth - padding.left - padding.right;
+   let height = innerHeight - padding.top - padding.bottom;
+   let placePad = 1, timePad = 10;
+
+   // visualization function
+   let main = function(data) {
+
+     // setup svg
+     let canvas = d3.select(".chart")
+       .append("svg")
+       .attr("width", outerWidth)
+       .attr("height", outerHeight)
+       .append("g")
+       .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+     let fastestTime = d3.min(data, function(d) {
+       return d.Seconds;
+     });
+     let xScale = d3.scale.linear()
+       .domain(
+         [
+           d3.max(data, function (d) {
+             return d.Seconds - fastestTime + timePad;
+           }),
+           d3.min(data, function (d) {
+             return d.Seconds - fastestTime;
+           })
+         ]
+       )
+       .range([0, width])
+
+     let yScale = d3.scale.linear()
+       .domain(
+         [ d3.max(data, function(d) {return d.Place}) + placePad,
+           d3.min(data, function(d) {return d.Place})
+         ]
+       )
+       .range([height, 0]);
+
+
+     canvas.selectAll('circle')
+       .data(data)
+       .enter()
+       .append('circle')
+       .attr({
+         class: function (d) {
+           if (d.Doping) return "datapoints doping";
+           else return "datapoints";
+         },
+         cx: function(d) {
+           return padding.left + xScale(d.Seconds - fastestTime);
+         },
+         cy: function(d) {return padding.top + yScale(d.Place)},
+         r: 4
+       })
+       .on('mouseover',function(d){
+         d3.select(this)
+           .transition()
+           .duration(250)
+           .attr('r', 7);
+
+         d3.select('#name')
+           .text(d.Name);
+
+         d3.select('#nationality')
+           .text(d.Nationality);
+
+         d3.select('#year')
+           .text(d.Year);
+
+         d3.select('#time')
+           .text(d.Time);
+
+         d3.select('#doping')
+           .text(d.Doping);
+
+         d3.select('#tooltip')
+           .style('opacity', 0.9);
+       })
+       .on('mouseout', function (d){
+         d3.select(this)
+           .transition()
+           .duration(500)
+           .attr('r', 4)
+
+         d3.select('#tooltip')
+           .style('opacity', 0);
+       })
+   let xLabel = {x:15, y:4};
+     canvas.selectAll('text')
+       .data(data)
+       .enter()
+       .append('text')
+       .text (function(d) {
+           return d.Name;
+         })
+       .attr ({
+         class: 'labels',
+         x: function (d) {
+           return padding.left + xScale(d.Seconds - fastestTime)
+             + xLabel.x;
+         },
+         y: function (d) {
+           return padding.top + yScale(d.Place)
+             + xLabel.y;
+         }
+       });
+     let legend = {top: 300, left: 550};
+     canvas.append('circle')
+       .attr({
+         cx: legend.left,
+         cy: legend.top,
+         r: 4,
+         class: "datapoints"
+       }).append('text')
+
+     canvas.append('text')
+       .text('No doping allegations')
+       .attr({
+         x: legend.left + 10,
+         y: legend.top  + 4,
+         class: 'labels'
+       });
+
+
+     canvas.append('circle')
+       .attr({
+         cx: legend.left,
+         cy: legend.top  + 30,
+         r: 4,
+         class: "datapoints doping"
+       });
+
+     canvas.append('text')
+       .text('Doping allegations')
+       .attr({
+         x: legend.left + 10,
+         y: legend.top + 35,
+         class: 'labels'
+       });
+
+     let timeFormat = d3.time.format("%M:%S");
+     let custFormat = function(d) {
+       let s = new Date(1970, 0, 0, 0, 0, d)
+       return timeFormat(s);
+     };
+
+     let xAxis = d3.svg.axis()
+       .scale(xScale)
+       .orient('bottom')
+       .tickFormat(custFormat);
+
+     let yAxis = d3.svg.axis()
+       .scale(yScale)
+       .orient('left');
+   let yLabel = {x: 30, y: 10};
+     canvas.append("text")
+       .attr("x", (width / 2) + padding.left)
+       .attr("y", margin.top + padding.top + height
+          + yLabel.x)
+       .attr("text-anchor", "middle")
+       .attr("class", "axislabels")
+       .text("Minutes Behind Fastest Time");
+
+     canvas.append("text")
+           .attr("transform", "rotate(-90)")
+           .text("Ranking")
+           .attr("y", -55 + margin.left + padding.left)
+           .attr("x", -30 - margin.top - padding.top
+              - yLabel.y)
+           .attr("class", "axislabels")
+           .style("text-anchor", "middle");
+
+     canvas.append("g")
+       .attr("transform", "translate("
+             + padding.left
+             + ","
+             + (height + padding.top)
+             + ")")
+       .attr("class", "axis")
+       .call(xAxis);
+
+     canvas.append("g")
+       .attr("transform", "translate("
+             + padding.left
+             + ","
+             + padding.top
+             + ")")
+       .attr("class", "axis")
+       .call(yAxis);
+
+   };
+   </script>
+ </footer>
+</html>
+</body>
